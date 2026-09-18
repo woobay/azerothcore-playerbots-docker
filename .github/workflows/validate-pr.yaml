@@ -1,0 +1,76 @@
+---
+name: Validate Pinned Refs
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - versions.env
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Validate Build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [authserver, worldserver, db-import]
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Load pins
+        run: |
+          set -euo pipefail
+          source versions.env
+          echo "CORE_REPO=${CORE_REPO}" >> "$GITHUB_ENV"
+          echo "CORE_REF=${CORE_REF}" >> "$GITHUB_ENV"
+          echo "MODULE_REPO=${MODULE_REPO}" >> "$GITHUB_ENV"
+          echo "MODULE_REF=${MODULE_REF}" >> "$GITHUB_ENV"
+
+      - name: Checkout core
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.CORE_REPO }}
+          ref: ${{ env.CORE_REF }}
+          path: core
+          fetch-depth: 0
+
+      - name: Checkout playerbots module
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.MODULE_REPO }}
+          ref: ${{ env.MODULE_REF }}
+          path: core/modules/mod-playerbots
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build (validation only, no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: core
+          file: core/apps/docker/Dockerfile
+          target: ${{ matrix.target }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+
+  validate:
+    name: Validate
+    if: ${{ !cancelled() }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Any jobs failed?
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
+
+      - name: All jobs passed
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: echo "All builds passed"

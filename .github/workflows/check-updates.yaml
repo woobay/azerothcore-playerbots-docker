@@ -1,0 +1,109 @@
+---
+name: Check for Upstream Updates
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    name: Check for Upstream Updates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Load current pins
+        id: current
+        run: |
+          set -euo pipefail
+          source versions.env
+          echo "core_repo=${CORE_REPO}" >> "$GITHUB_OUTPUT"
+          echo "core_ref=${CORE_REF}" >> "$GITHUB_OUTPUT"
+          echo "module_repo=${MODULE_REPO}" >> "$GITHUB_OUTPUT"
+          echo "module_ref=${MODULE_REF}" >> "$GITHUB_OUTPUT"
+
+      # We intentionally lag one commit behind the tip of each upstream
+      # branch. This gives upstream a chance to catch obviously broken
+      # commits before we ever build against them. Since this is stateless
+      # (always index [1] of the commit list), it self-corrects every run
+      # regardless of how many commits landed since the last check.
+      - name: Resolve lagged core SHA
+        id: core
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ steps.current.outputs.core_repo }}"
+          sha=$(gh api "repos/${repo}/commits?sha=Playerbot&per_page=2" --jq '.[1].sha // .[0].sha')
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve lagged module SHA
+        id: module
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ steps.current.outputs.module_repo }}"
+          sha=$(gh api "repos/${repo}/commits?sha=master&per_page=2" --jq '.[1].sha // .[0].sha')
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Determine if an update is needed
+        id: diff
+        run: |
+          set -euo pipefail
+          changed=false
+          if [[ "${{ steps.core.outputs.sha }}" != "${{ steps.current.outputs.core_ref }}" ]]; then
+            changed=true
+          fi
+          if [[ "${{ steps.module.outputs.sha }}" != "${{ steps.current.outputs.module_ref }}" ]]; then
+            changed=true
+          fi
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+
+      - name: Update versions.env
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          cat > versions.env <<EOF
+          CORE_REPO=${{ steps.current.outputs.core_repo }}
+          CORE_REF=${{ steps.core.outputs.sha }}
+          MODULE_REPO=${{ steps.current.outputs.module_repo }}
+          MODULE_REF=${{ steps.module.outputs.sha }}
+          EOF
+
+      - name: Open pull request
+        if: steps.diff.outputs.changed == 'true'
+        id: pr
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump pinned upstream refs"
+          branch: automation/bump-upstream-refs
+          delete-branch: true
+          title: "chore: bump pinned upstream refs (1 commit behind latest)"
+          body: |
+            Automated update of pinned upstream refs, resolved to one commit
+            behind the tip of each tracked branch.
+
+            - Core (`${{ steps.current.outputs.core_repo }}@Playerbot`):
+              `${{ steps.current.outputs.core_ref }}` -> `${{ steps.core.outputs.sha }}`
+              https://github.com/${{ steps.current.outputs.core_repo }}/commit/${{ steps.core.outputs.sha }}
+            - Module (`${{ steps.current.outputs.module_repo }}@master`):
+              `${{ steps.current.outputs.module_ref }}` -> `${{ steps.module.outputs.sha }}`
+              https://github.com/${{ steps.current.outputs.module_repo }}/commit/${{ steps.module.outputs.sha }}
+
+            This PR will auto-merge once the `validate` status check passes.
+          labels: automation
+
+      - name: Enable auto-merge
+        if: steps.diff.outputs.changed == 'true' && steps.pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge --auto --squash "${{ steps.pr.outputs.pull-request-number }}"
