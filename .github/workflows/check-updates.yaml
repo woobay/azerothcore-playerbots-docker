@@ -27,6 +27,9 @@ jobs:
           echo "core_ref=${CORE_REF}" >> "$GITHUB_OUTPUT"
           echo "module_repo=${MODULE_REPO}" >> "$GITHUB_OUTPUT"
           echo "module_ref=${MODULE_REF}" >> "$GITHUB_OUTPUT"
+          echo "module2_repo=${MODULE2_REPO}" >> "$GITHUB_OUTPUT"
+          echo "module2_branch=${MODULE2_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "module2_ref=${MODULE2_REF}" >> "$GITHUB_OUTPUT"
 
       # We intentionally lag one commit behind the tip of each upstream
       # branch. This gives upstream a chance to catch obviously broken
@@ -53,6 +56,17 @@ jobs:
           sha=$(gh api "repos/${repo}/commits?sha=master&per_page=2" --jq '.[1].sha // .[0].sha')
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve lagged mod-multibot-bridge SHA
+        id: module2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ steps.current.outputs.module2_repo }}"
+          branch="${{ steps.current.outputs.module2_branch }}"
+          sha=$(gh api "repos/${repo}/commits?sha=${branch}&per_page=2" --jq '.[1].sha // .[0].sha')
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
       - name: Determine if an update is needed
         id: diff
         run: |
@@ -62,6 +76,9 @@ jobs:
             changed=true
           fi
           if [[ "${{ steps.module.outputs.sha }}" != "${{ steps.current.outputs.module_ref }}" ]]; then
+            changed=true
+          fi
+          if [[ "${{ steps.module2.outputs.sha }}" != "${{ steps.current.outputs.module2_ref }}" ]]; then
             changed=true
           fi
           echo "changed=${changed}" >> "$GITHUB_OUTPUT"
@@ -75,6 +92,9 @@ jobs:
           CORE_REF=${{ steps.core.outputs.sha }}
           MODULE_REPO=${{ steps.current.outputs.module_repo }}
           MODULE_REF=${{ steps.module.outputs.sha }}
+          MODULE2_REPO=${{ steps.current.outputs.module2_repo }}
+          MODULE2_BRANCH=${{ steps.current.outputs.module2_branch }}
+          MODULE2_REF=${{ steps.module2.outputs.sha }}
           EOF
 
       - name: Open pull request
@@ -97,6 +117,9 @@ jobs:
             - Module (`${{ steps.current.outputs.module_repo }}@master`):
               `${{ steps.current.outputs.module_ref }}` -> `${{ steps.module.outputs.sha }}`
               https://github.com/${{ steps.current.outputs.module_repo }}/commit/${{ steps.module.outputs.sha }}
+            - Module 2 (`${{ steps.current.outputs.module2_repo }}@${{ steps.current.outputs.module2_branch }}`):
+              `${{ steps.current.outputs.module2_ref }}` -> `${{ steps.module2.outputs.sha }}`
+              https://github.com/${{ steps.current.outputs.module2_repo }}/commit/${{ steps.module2.outputs.sha }}
 
             This PR will auto-merge once the `validate` status check passes.
           labels: automation

@@ -16,6 +16,11 @@ jobs:
   build:
     name: Validate Build (${{ matrix.target }})
     runs-on: ubuntu-latest
+    # Full AzerothCore compiles can take well over an hour per target.
+    # GitHub's implicit default (360m) would already cover this, but set
+    # explicitly so a runaway build fails clearly with an expected budget
+    # instead of relying on an implicit ceiling.
+    timeout-minutes: 240
     strategy:
       matrix:
         target: [authserver, worldserver, db-import]
@@ -32,6 +37,8 @@ jobs:
           echo "CORE_REF=${CORE_REF}" >> "$GITHUB_ENV"
           echo "MODULE_REPO=${MODULE_REPO}" >> "$GITHUB_ENV"
           echo "MODULE_REF=${MODULE_REF}" >> "$GITHUB_ENV"
+          echo "MODULE2_REPO=${MODULE2_REPO}" >> "$GITHUB_ENV"
+          echo "MODULE2_REF=${MODULE2_REF}" >> "$GITHUB_ENV"
 
       - name: Checkout core
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -47,6 +54,13 @@ jobs:
           repository: ${{ env.MODULE_REPO }}
           ref: ${{ env.MODULE_REF }}
           path: core/modules/mod-playerbots
+
+      - name: Checkout multibot-bridge module
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.MODULE2_REPO }}
+          ref: ${{ env.MODULE2_REF }}
+          path: core/modules/mod-multibot-bridge
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
