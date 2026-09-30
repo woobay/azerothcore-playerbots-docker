@@ -1,9 +1,10 @@
 # azerothcore-playerbots-docker
 
 Automated Docker image builds for an AzerothCore worldserver/authserver with
-the [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) module
-and the [mod-multibot-bridge](https://github.com/Wishmaster117/mod-multibot-bridge)
-module built in, published to `ghcr.io/woobay/*`.
+the [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) module,
+the [mod-multibot-bridge](https://github.com/Wishmaster117/mod-multibot-bridge)
+module, and the [mod-ah-bot-plus](https://github.com/NathanHandley/mod-ah-bot-plus)
+auction house bot module built in, published to `ghcr.io/woobay/*`.
 
 ## Why this repo exists
 
@@ -25,13 +26,23 @@ addon, letting it control playerbots (roster, inventory, talents, loot rules,
 etc.) via structured protocol messages instead of chat commands. It has no
 database/SQL component of its own.
 
+`mod-ah-bot-plus` is a normal (non-forking) AzerothCore module that populates
+the in-game auction house with bot-driven listings and (optionally) bot
+buyers, using file-based configuration instead of SQL. **Operational note:**
+per its own README, the character(s) used as the AH-bot's listing identity
+must be regular, non-playerbot characters (create a plain player account +
+character and add its GUID to `AuctionHouseBot.GUIDs` in the module config).
+This is a runtime/deployment concern on the live server, not something this
+repo's CI manages.
+
 ## Pinning strategy: always one commit behind
 
 `versions.env` pins exact commit SHAs for the core fork (`Playerbot` branch),
-`mod-playerbots` (`master` branch), and `mod-multibot-bridge` (`main` branch,
-no tagged releases). We intentionally lag **one commit behind the tip** of
-each branch — this gives upstream a chance to catch obviously broken commits
-(CI failures, reverts, etc.) before we ever build against them.
+`mod-playerbots` (`master` branch), `mod-multibot-bridge` (`main` branch,
+no tagged releases), and `mod-ah-bot-plus` (`master` branch). We intentionally
+lag **one commit behind the tip** of each branch — this gives upstream a
+chance to catch obviously broken commits (CI failures, reverts, etc.) before
+we ever build against them.
 
 This is resolved statelessly: on every check, we ask GitHub for the two most
 recent commits and take the second one. There's no persisted "last seen"
@@ -42,7 +53,7 @@ between checks, we're always exactly one commit behind current tip.
 
 ```
 weekly schedule (check-updates.yaml)
-  -> resolve 1-behind-latest SHAs for core + both modules
+  -> resolve 1-behind-latest SHAs for core + all three modules
   -> if changed: open a PR updating versions.env
   -> validate-pr.yaml runs (build-only, no push) as a required status check
        - builds all 3 targets: authserver, worldserver, db-import
@@ -64,6 +75,13 @@ in the same fully-automated pin-bump pipeline (by design/choice) rather than
 requiring manual review - the `validate-pr.yaml` build-only gate is what
 catches breakage before anything reaches `main`/GHCR.
 
+Note: `mod-ah-bot-plus` has a known history of compile issues against
+playerbot-forked cores in older/other AH-bot variants (mismatched
+`WorldSession` constructor signatures introduced by playerbots' core changes).
+It's untested against this specific pin at the time it was added; the same
+build-only validation gate is relied on to catch any breakage rather than a
+manual precheck.
+
 ## Images produced
 
 - `ghcr.io/woobay/ac-wotlk-playerbots-authserver`
@@ -71,8 +89,8 @@ catches breakage before anything reaches `main`/GHCR.
 - `ghcr.io/woobay/ac-wotlk-playerbots-dbimport`
 
 Each is tagged with:
-- `core-<short-sha>_module-<short-sha>_mbbridge-<short-sha>` — traceable,
-  reproducible tag
+- `core-<short-sha>_module-<short-sha>_mbbridge-<short-sha>_ahbot-<short-sha>` —
+  traceable, reproducible tag
 - `latest` — always points at the most recently built pin
 
 ## Manually triggering a rebuild
@@ -94,6 +112,13 @@ instead of relying on GitHub's implicit default (360 minutes).
 
 - **Allow auto-merge** must be enabled in repo settings (Settings ->
   General -> Pull Requests) for the automated PR flow to work
+- **Allow GitHub Actions to create and approve pull requests** must be
+  enabled (Settings -> Actions -> General -> Workflow permissions). Without
+  this, `check-updates.yaml` fails at the PR-creation step with
+  `GitHub Actions is not permitted to create or approve pull requests` even
+  though the workflow already declares `permissions: pull-requests: write` -
+  this is a separate, repo-level toggle that overrides workflow-level
+  permissions
 - Branch protection on `main` should require the `Validate` status check
   (from `validate-pr.yaml`) before merging
 - GHCR package visibility should be set to **public** after the first
