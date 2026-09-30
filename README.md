@@ -3,8 +3,10 @@
 Automated Docker image builds for an AzerothCore worldserver/authserver with
 the [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) module,
 the [mod-multibot-bridge](https://github.com/Wishmaster117/mod-multibot-bridge)
-module, and the [mod-ah-bot-plus](https://github.com/NathanHandley/mod-ah-bot-plus)
-auction house bot module built in, published to `ghcr.io/woobay/*`.
+module, the [mod-ah-bot-plus](https://github.com/NathanHandley/mod-ah-bot-plus)
+auction house bot module, and the
+[mod-individual-xp](https://github.com/azerothcore/mod-individual-xp) module
+built in, published to `ghcr.io/woobay/*`.
 
 ## Why this repo exists
 
@@ -35,14 +37,27 @@ character and add its GUID to `AuctionHouseBot.GUIDs` in the module config).
 This is a runtime/deployment concern on the live server, not something this
 repo's CI manages.
 
+`mod-individual-xp` is a normal (non-forking) AzerothCore module that lets
+per-character XP rate multipliers be set on top of the server-wide
+`Rate.XP.*` settings, via the `OnPlayerGiveXP` hook (persisted in a new
+`characters.individualxp` table). It ships player-facing chat commands
+(`.xp view` / `.xp set <rate>` / `.xp default` / `.xp enable` / `.xp disable`)
+plus admin config (`IndividualXp.MaxXPRate`, `IndividualXp.DefaultXPRate`).
+**Operational note:** it doesn't check for bot-controlled characters, so
+playerbot characters will also get an `individualxp` row (harmless — it just
+sits at `IndividualXp.DefaultXPRate` since bots can't run chat commands
+themselves, and mod-playerbots' own separate `AiPlayerbot.RandomBotXPRate`
+multiplier still applies independently on top).
+
 ## Pinning strategy: always one commit behind
 
 `versions.env` pins exact commit SHAs for the core fork (`Playerbot` branch),
 `mod-playerbots` (`master` branch), `mod-multibot-bridge` (`main` branch,
-no tagged releases), and `mod-ah-bot-plus` (`master` branch). We intentionally
-lag **one commit behind the tip** of each branch — this gives upstream a
-chance to catch obviously broken commits (CI failures, reverts, etc.) before
-we ever build against them.
+no tagged releases), `mod-ah-bot-plus` (`master` branch), and
+`mod-individual-xp` (`master` branch). We intentionally lag **one commit
+behind the tip** of each branch — this gives upstream a chance to catch
+obviously broken commits (CI failures, reverts, etc.) before we ever build
+against them.
 
 This is resolved statelessly: on every check, we ask GitHub for the two most
 recent commits and take the second one. There's no persisted "last seen"
@@ -53,7 +68,7 @@ between checks, we're always exactly one commit behind current tip.
 
 ```
 weekly schedule (check-updates.yaml)
-  -> resolve 1-behind-latest SHAs for core + all three modules
+  -> resolve 1-behind-latest SHAs for core + all four modules
   -> if changed: open a PR updating versions.env
   -> validate-pr.yaml runs (build-only, no push) as a required status check
        - builds all 3 targets: authserver, worldserver, db-import
@@ -89,7 +104,7 @@ manual precheck.
 - `ghcr.io/woobay/ac-wotlk-playerbots-dbimport`
 
 Each is tagged with:
-- `core-<short-sha>_module-<short-sha>_mbbridge-<short-sha>_ahbot-<short-sha>` —
+- `core-<short-sha>_module-<short-sha>_mbbridge-<short-sha>_ahbot-<short-sha>_ixp-<short-sha>` —
   traceable, reproducible tag
 - `latest` — always points at the most recently built pin
 

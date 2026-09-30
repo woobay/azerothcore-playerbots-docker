@@ -41,6 +41,8 @@ jobs:
           echo "MODULE2_REF=${MODULE2_REF}" >> "$GITHUB_ENV"
           echo "MODULE3_REPO=${MODULE3_REPO}" >> "$GITHUB_ENV"
           echo "MODULE3_REF=${MODULE3_REF}" >> "$GITHUB_ENV"
+          echo "MODULE4_REPO=${MODULE4_REPO}" >> "$GITHUB_ENV"
+          echo "MODULE4_REF=${MODULE4_REF}" >> "$GITHUB_ENV"
 
       - name: Checkout core
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -70,6 +72,13 @@ jobs:
           repository: ${{ env.MODULE3_REPO }}
           ref: ${{ env.MODULE3_REF }}
           path: core/modules/mod-ah-bot-plus
+
+      - name: Checkout individual-xp module
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.MODULE4_REPO }}
+          ref: ${{ env.MODULE4_REF }}
+          path: core/modules/mod-individual-xp
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1

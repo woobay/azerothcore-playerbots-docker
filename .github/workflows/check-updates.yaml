@@ -33,6 +33,9 @@ jobs:
           echo "module3_repo=${MODULE3_REPO}" >> "$GITHUB_OUTPUT"
           echo "module3_branch=${MODULE3_BRANCH}" >> "$GITHUB_OUTPUT"
           echo "module3_ref=${MODULE3_REF}" >> "$GITHUB_OUTPUT"
+          echo "module4_repo=${MODULE4_REPO}" >> "$GITHUB_OUTPUT"
+          echo "module4_branch=${MODULE4_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "module4_ref=${MODULE4_REF}" >> "$GITHUB_OUTPUT"
 
       # We intentionally lag one commit behind the tip of each upstream
       # branch. This gives upstream a chance to catch obviously broken
@@ -81,6 +84,17 @@ jobs:
           sha=$(gh api "repos/${repo}/commits?sha=${branch}&per_page=2" --jq '.[1].sha // .[0].sha')
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve lagged mod-individual-xp SHA
+        id: module4
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ steps.current.outputs.module4_repo }}"
+          branch="${{ steps.current.outputs.module4_branch }}"
+          sha=$(gh api "repos/${repo}/commits?sha=${branch}&per_page=2" --jq '.[1].sha // .[0].sha')
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
       - name: Determine if an update is needed
         id: diff
         run: |
@@ -96,6 +110,9 @@ jobs:
             changed=true
           fi
           if [[ "${{ steps.module3.outputs.sha }}" != "${{ steps.current.outputs.module3_ref }}" ]]; then
+            changed=true
+          fi
+          if [[ "${{ steps.module4.outputs.sha }}" != "${{ steps.current.outputs.module4_ref }}" ]]; then
             changed=true
           fi
           echo "changed=${changed}" >> "$GITHUB_OUTPUT"
@@ -115,6 +132,9 @@ jobs:
           MODULE3_REPO=${{ steps.current.outputs.module3_repo }}
           MODULE3_BRANCH=${{ steps.current.outputs.module3_branch }}
           MODULE3_REF=${{ steps.module3.outputs.sha }}
+          MODULE4_REPO=${{ steps.current.outputs.module4_repo }}
+          MODULE4_BRANCH=${{ steps.current.outputs.module4_branch }}
+          MODULE4_REF=${{ steps.module4.outputs.sha }}
           EOF
 
       - name: Open pull request
@@ -143,6 +163,9 @@ jobs:
             - Module 3 (`${{ steps.current.outputs.module3_repo }}@${{ steps.current.outputs.module3_branch }}`):
               `${{ steps.current.outputs.module3_ref }}` -> `${{ steps.module3.outputs.sha }}`
               https://github.com/${{ steps.current.outputs.module3_repo }}/commit/${{ steps.module3.outputs.sha }}
+            - Module 4 (`${{ steps.current.outputs.module4_repo }}@${{ steps.current.outputs.module4_branch }}`):
+              `${{ steps.current.outputs.module4_ref }}` -> `${{ steps.module4.outputs.sha }}`
+              https://github.com/${{ steps.current.outputs.module4_repo }}/commit/${{ steps.module4.outputs.sha }}
 
             This PR will auto-merge once the `validate` status check passes.
           labels: automation

@@ -49,10 +49,13 @@ jobs:
           echo "MODULE2_REF=${MODULE2_REF}" >> "$GITHUB_ENV"
           echo "MODULE3_REPO=${MODULE3_REPO}" >> "$GITHUB_ENV"
           echo "MODULE3_REF=${MODULE3_REF}" >> "$GITHUB_ENV"
+          echo "MODULE4_REPO=${MODULE4_REPO}" >> "$GITHUB_ENV"
+          echo "MODULE4_REF=${MODULE4_REF}" >> "$GITHUB_ENV"
           echo "CORE_REF_SHORT=${CORE_REF:0:7}" >> "$GITHUB_ENV"
           echo "MODULE_REF_SHORT=${MODULE_REF:0:7}" >> "$GITHUB_ENV"
           echo "MODULE2_REF_SHORT=${MODULE2_REF:0:7}" >> "$GITHUB_ENV"
           echo "MODULE3_REF_SHORT=${MODULE3_REF:0:7}" >> "$GITHUB_ENV"
+          echo "MODULE4_REF_SHORT=${MODULE4_REF:0:7}" >> "$GITHUB_ENV"
 
       - name: Checkout core
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -83,6 +86,13 @@ jobs:
           ref: ${{ env.MODULE3_REF }}
           path: core/modules/mod-ah-bot-plus
 
+      - name: Checkout individual-xp module
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.MODULE4_REPO }}
+          ref: ${{ env.MODULE4_REF }}
+          path: core/modules/mod-individual-xp
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -112,7 +122,7 @@ jobs:
           target: ${{ matrix.target }}
           push: true
           tags: |
-            ghcr.io/woobay/${{ steps.image.outputs.name }}:core-${{ env.CORE_REF_SHORT }}_module-${{ env.MODULE_REF_SHORT }}_mbbridge-${{ env.MODULE2_REF_SHORT }}_ahbot-${{ env.MODULE3_REF_SHORT }}
+            ghcr.io/woobay/${{ steps.image.outputs.name }}:core-${{ env.CORE_REF_SHORT }}_module-${{ env.MODULE_REF_SHORT }}_mbbridge-${{ env.MODULE2_REF_SHORT }}_ahbot-${{ env.MODULE3_REF_SHORT }}_ixp-${{ env.MODULE4_REF_SHORT }}
             ghcr.io/woobay/${{ steps.image.outputs.name }}:latest
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
