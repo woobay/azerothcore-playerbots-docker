@@ -43,6 +43,8 @@ jobs:
           echo "MODULE3_REF=${MODULE3_REF}" >> "$GITHUB_ENV"
           echo "MODULE4_REPO=${MODULE4_REPO}" >> "$GITHUB_ENV"
           echo "MODULE4_REF=${MODULE4_REF}" >> "$GITHUB_ENV"
+          echo "MODULE5_REPO=${MODULE5_REPO}" >> "$GITHUB_ENV"
+          echo "MODULE5_REF=${MODULE5_REF}" >> "$GITHUB_ENV"
 
       - name: Checkout core
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -79,6 +81,13 @@ jobs:
           repository: ${{ env.MODULE4_REPO }}
           ref: ${{ env.MODULE4_REF }}
           path: core/modules/mod-individual-xp
+
+      - name: Checkout dungeon-clear module
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ env.MODULE5_REPO }}
+          ref: ${{ env.MODULE5_REF }}
+          path: core/modules/mod-dungeon-clear
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1

@@ -5,7 +5,8 @@ the [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) module,
 the [mod-multibot-bridge](https://github.com/Wishmaster117/mod-multibot-bridge)
 module, the [mod-ah-bot-plus](https://github.com/NathanHandley/mod-ah-bot-plus)
 auction house bot module, and the
-[mod-individual-xp](https://github.com/azerothcore/mod-individual-xp) module
+[mod-individual-xp](https://github.com/azerothcore/mod-individual-xp) module, and the
+[mod-dungeon-clear](https://github.com/jrad7/mod-dungeon-clear) module
 built in, published to `ghcr.io/woobay/*`.
 
 ## Why this repo exists
@@ -54,7 +55,8 @@ multiplier still applies independently on top).
 `versions.env` pins exact commit SHAs for the core fork (`Playerbot` branch),
 `mod-playerbots` (`master` branch), `mod-multibot-bridge` (`main` branch,
 no tagged releases), `mod-ah-bot-plus` (`master` branch), and
-`mod-individual-xp` (`master` branch). We intentionally lag **one commit
+`mod-individual-xp` (`master` branch), and
+`mod-dungeon-clear` (`master` branch). We intentionally lag **one commit
 behind the tip** of each branch — this gives upstream a chance to catch
 obviously broken commits (CI failures, reverts, etc.) before we ever build
 against them.
@@ -104,7 +106,7 @@ manual precheck.
 - `ghcr.io/woobay/ac-wotlk-playerbots-dbimport`
 
 Each is tagged with:
-- `core-<short-sha>_module-<short-sha>_mbbridge-<short-sha>_ahbot-<short-sha>_ixp-<short-sha>` —
+- `core-<short-sha>_module-<short-sha>_mbbridge-<short-sha>_ahbot-<short-sha>_ixp-<short-sha>_dclear-<short-sha>` —
   traceable, reproducible tag
 - `latest` — always points at the most recently built pin
 

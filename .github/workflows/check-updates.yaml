@@ -36,6 +36,9 @@ jobs:
           echo "module4_repo=${MODULE4_REPO}" >> "$GITHUB_OUTPUT"
           echo "module4_branch=${MODULE4_BRANCH}" >> "$GITHUB_OUTPUT"
           echo "module4_ref=${MODULE4_REF}" >> "$GITHUB_OUTPUT"
+          echo "module5_repo=${MODULE5_REPO}" >> "$GITHUB_OUTPUT"
+          echo "module5_branch=${MODULE5_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "module5_ref=${MODULE5_REF}" >> "$GITHUB_OUTPUT"
 
       # We intentionally lag one commit behind the tip of each upstream
       # branch. This gives upstream a chance to catch obviously broken
@@ -95,6 +98,17 @@ jobs:
           sha=$(gh api "repos/${repo}/commits?sha=${branch}&per_page=2" --jq '.[1].sha // .[0].sha')
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve lagged mod-dungeon-clear SHA
+        id: module5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ steps.current.outputs.module5_repo }}"
+          branch="${{ steps.current.outputs.module5_branch }}"
+          sha=$(gh api "repos/${repo}/commits?sha=${branch}&per_page=2" --jq '.[1].sha // .[0].sha')
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
       - name: Determine if an update is needed
         id: diff
         run: |
@@ -113,6 +127,9 @@ jobs:
             changed=true
           fi
           if [[ "${{ steps.module4.outputs.sha }}" != "${{ steps.current.outputs.module4_ref }}" ]]; then
+            changed=true
+          fi
+          if [[ "${{ steps.module5.outputs.sha }}" != "${{ steps.current.outputs.module5_ref }}" ]]; then
             changed=true
           fi
           echo "changed=${changed}" >> "$GITHUB_OUTPUT"
@@ -135,6 +152,9 @@ jobs:
           MODULE4_REPO=${{ steps.current.outputs.module4_repo }}
           MODULE4_BRANCH=${{ steps.current.outputs.module4_branch }}
           MODULE4_REF=${{ steps.module4.outputs.sha }}
+          MODULE5_REPO=${{ steps.current.outputs.module5_repo }}
+          MODULE5_BRANCH=${{ steps.current.outputs.module5_branch }}
+          MODULE5_REF=${{ steps.module5.outputs.sha }}
           EOF
 
       - name: Open pull request
@@ -166,6 +186,9 @@ jobs:
             - Module 4 (`${{ steps.current.outputs.module4_repo }}@${{ steps.current.outputs.module4_branch }}`):
               `${{ steps.current.outputs.module4_ref }}` -> `${{ steps.module4.outputs.sha }}`
               https://github.com/${{ steps.current.outputs.module4_repo }}/commit/${{ steps.module4.outputs.sha }}
+            - Module 5 (`${{ steps.current.outputs.module5_repo }}@${{ steps.current.outputs.module5_branch }}`):
+              `${{ steps.current.outputs.module5_ref }}` -> `${{ steps.module5.outputs.sha }}`
+              https://github.com/${{ steps.current.outputs.module5_repo }}/commit/${{ steps.module5.outputs.sha }}
 
             This PR will auto-merge once the `validate` status check passes.
           labels: automation
